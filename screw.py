@@ -1,13 +1,15 @@
 import tkinter as tk
 import lib
+from PIL import ImageTk
+from math import pi
 
 
 class Screw(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
 
-        self.width = 300
-        self.height = 200
+        self.width = 500
+        self.height = 400
 
         self.polyhedron = lib.Polyhedron.Cube(lib.Point(0, 0, 0), 0)
         self.camera = lib.Camera.iso()
@@ -33,7 +35,7 @@ class Screw(tk.Frame):
         self.clear_button = tk.Button(self, text="clear", command=self.clear)
         self.clear_button.grid(row=3, column=0)
 
-        self.render = tk.Label(self, width=self.width, height=self.height)
+        self.render = tk.Label(self)
         self.render.grid(row=4, column=0)
 
         self.canvas_draw()
@@ -49,7 +51,7 @@ class Screw(tk.Frame):
 
     def read_params(self, *args):
         try:
-            self.angle = 360. / float(self.separation_var.get())
+            self.angle = 2 * pi / float(self.separation_var.get())
         except:
             self.angle = 0.
         self.screw()
@@ -65,12 +67,14 @@ class Screw(tk.Frame):
             self.canvas.create_oval(p[0] - 1, p[1] - 1, p[0] + 1, p[1] + 1)
 
     def screw(self):
+        if self.angle == 0:
+            return
         points = [lib.Point(x, 0, z) for x, z in self.points]
         transform = lib.Transform.rotate(self.axis_var.get(), self.angle)
         polyhedron = lib.Polyhedron(points, [])
         sides = []
         print(self.angle)
-        for _ in range(int(360. / self.angle)):
+        for _ in range(int(2 * pi / self.angle)):
             polyhedron2 = polyhedron.apply_transform(transform)
             ind_now = len(points)
             ind_prev = ind_now - len(self.points)
@@ -83,12 +87,19 @@ class Screw(tk.Frame):
                 q2 = ind_now + i + 1
 
                 sides.append([p1, p2, q1])
-                sides.append([p1, q1, q2])
+                sides.append([p2, q1, q2])
 
             polyhedron = polyhedron2
 
-        print(points)
-        print(sides)
+        for i in range(len(self.points) - 1):
+            p1 = len(points) - i - 1
+            p2 = len(points) - i - 2
+            q1 = len(self.points) - i - 1
+            q2 = len(self.points) - i - 2
+
+            sides.append([p1, p2, q1])
+            sides.append([p2, q1, q2])
+
         self.polyhedron = lib.Polyhedron(points, sides)
         self.draw()
 

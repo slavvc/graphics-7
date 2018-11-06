@@ -45,3 +45,4 @@ class Main:
         fr = self.frames[idx]
         fr.grid(row=1, column=0)
         self.current = idx
+        self.frames[self.current].draw()
