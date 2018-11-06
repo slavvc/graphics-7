@@ -187,7 +187,7 @@ class Prog:
             .grid(row=0, column=5)
         for v in self.transform_choice_scale_vars:
             v.trace('w', self.read_transform_choice_scale)
-        
+
         # # # # rotate_around_line
         self.transform_choice_frames.append((tk.Frame(), (3, 6)))
         tmp_fr = self.transform_choice_frames[-1][0]
