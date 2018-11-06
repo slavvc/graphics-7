@@ -92,7 +92,7 @@ class Polyhedron:
         p = np.ones((4, l))
         p[:3, :] = self.points
         r = transform.matrix.dot(p)
-        r / r[3, :]
+        r /= r[3, :]
         return Polyhedron(r[:3, :].T, self.sides)
 
     def apply_relative_transform(self, transform):
