@@ -56,7 +56,6 @@ class SaveLoad(tk.Frame):
         super().__init__(root)
         self.open = tk.Button(self, text="open", command=self.open_file).grid(row=1, column=0)
         self.save = tk.Button(self, text="save", command=self.save_file).grid(row=1, column=1)
-        self.polyhedron1 = lib.Polyhedron.Cube(lib.Point(0, 0, 0), 100)
         
     def open_file(self):
         filename = tk.filedialog.askopenfilename()
