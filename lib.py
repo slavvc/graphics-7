@@ -91,6 +91,31 @@ class Polyhedron:
         ))
         return self.apply_transform(tr)
 
+    def save_obj(self, filename):
+        with open(filename, 'wt') as f:
+            for p in self.points.T:
+                f.write("v {} {} {}\n".format(*p))
+            for s in self.sides:
+                f.write("f {} {} {}\n".format(s[0]+1, s[1]+1, s[2]+1))
+
+    @staticmethod
+    def load_obj(filename):
+        points=[]
+        sides=[]
+        with open(filename, 'rt') as f:
+            for line in f.readlines():
+                ls = line.split()
+                if len(ls) != 4:
+                    continue
+                t = ls[0]
+                if t == 'f':
+                    d = [int(x.split('/')[0])-1 for x in ls[1:]]
+                    sides.append(d)
+                elif t == 'v':
+                    d = [float(x.split('/')[0]) for x in ls[1:]]
+                    points.append(Point(*d))
+        return Polyhedron(points, sides)
+
     @staticmethod
     def Tetrahedron(center, radius):
         tetrahedral_angle = np.arccos(-1/3)
@@ -120,12 +145,12 @@ class Polyhedron:
             Point(side,0,side)
         ]
         sides = [
-            [0,1,2,3],
-            [4,5,6,7],
-            [0,1,5,1],
-            [3,0,4,7],
-            [1,2,6,5],
-            [2,3,7,6]
+            [0,1,2],[0,2,3],
+            [4,5,6],[4,6,7],
+            [0,1,5],[0,5,4],
+            [3,0,4],[3,4,7],
+            [1,2,6],[1,6,5],
+            [2,3,7],[2,7,6]
         ]
         p = Polyhedron(points, sides)
         p=p.apply_transform(Transform.translate(
@@ -315,23 +340,38 @@ class Camera:
 
 
 if __name__ == "__main__":
-    import imageio as iio
-    t = Polyhedron.Octahedron(Point(10,0,0),7)
-    # print(t.points)
-    c = Camera.iso()
-    with iio.get_writer("test.gif", fps=30) as w:
-        for i in range(1000):
-            tr = Transform.scale(5,5,5).compose(
-                Transform.rotate('x', 0).compose(
-                    # Transform.rotate('z', 2*np.pi*i/100)
-                    # Transform.identity()
-                    Transform.rotate_around_line(
-                        Line(Point(0,0,0), Point(1-i/1000,0,i/1000)),
-                        2*np.pi*i/100
-                    )
-                )
-            )
-            # tr = Transform.reflect('yz').compose(tr)
-            p = t.apply_relative_transform(tr)
-            im=np.array(c.draw((112,112), p.points, p.sides))
-            w.append_data(im)
+    # import imageio as iio
+    # t = Polyhedron.Octahedron(Point(10,0,0),7)
+    # # print(t.points)
+    # c = Camera.iso()
+    # with iio.get_writer("test.gif", fps=30) as w:
+    #     for i in range(1000):
+    #         tr = Transform.scale(5,5,5).compose(
+    #             Transform.rotate('x', 0).compose(
+    #                 # Transform.rotate('z', 2*np.pi*i/100)
+    #                 # Transform.identity()
+    #                 Transform.rotate_around_line(
+    #                     Line(Point(0,0,0), Point(1-i/1000,0,i/1000)),
+    #                     2*np.pi*i/100
+    #                 )
+    #             )
+    #         )
+    #         # tr = Transform.reflect('yz').compose(tr)
+    #         p = t.apply_relative_transform(tr)
+    #         im=np.array(c.draw((112,112), p.points, p.sides))
+    #         w.append_data(im)
+    s = Polyhedron.Cube(Point(0,200,0), 100)
+    s.save_obj('tmp.obj')
+    # t = Polyhedron.load_obj('tmp.obj').apply_relative_transform(Transform.rotate('x', 1))
+    t = Polyhedron.load_obj('deer.obj')\
+    .apply_relative_transform(
+        Transform.rotate('x', np.pi/2).compose(
+            Transform.scale(*[0.1]*3)
+        )
+    )
+    t = t.apply_transform(
+        Transform.translate(-150,-850,0)
+    )
+    c = Camera.persp(0.01)
+    # c = Camera.ortho()
+    c.draw((200,200),t.points, t.sides).show()
