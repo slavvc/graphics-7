@@ -5,10 +5,11 @@ from graphics import Graphic
 from saveload import SaveLoad
 from screw import Screw
 
+
 class Main:
     def __init__(self, root):
         self.root = root
-        
+
         self.ui_list = [
             'lab6',
             'graphic',
@@ -20,7 +21,7 @@ class Main:
         self.camera = lib.Camera.ortho()
         self.transform = lib.Transform.identity()
 
-        self.current = 3
+        self.current = 0
 
         self.menu_var = tk.StringVar()
         self.menu_var.set(self.ui_list[self.current])
@@ -39,6 +40,8 @@ class Main:
         tr = self.menu_var.get()
         idx = self.ui_list.index(tr)
         self.frames[self.current].grid_forget()
+        self.polyhedron = self.frames[self.current].polyhedron
+        self.frames[idx].polyhedron = self.polyhedron
         fr = self.frames[idx]
         fr.grid(row=1, column=0)
         self.current = idx

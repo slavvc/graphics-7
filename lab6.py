@@ -3,6 +3,7 @@ from PIL import ImageTk
 import tkinter as tk
 import numpy as np
 
+
 class Lab6(tk.Frame):
     def __init__(self, root):
         tk.Frame.__init__(self, root)
