@@ -87,7 +87,7 @@ class Screw(tk.Frame):
                 q2 = ind_now + i + 1
 
                 sides.append([p1, p2, q1])
-                sides.append([p2, q1, q2])
+                sides.append([p2, q2, q1])
 
             polyhedron = polyhedron2
 
@@ -97,8 +97,8 @@ class Screw(tk.Frame):
             q1 = len(self.points) - i - 1
             q2 = len(self.points) - i - 2
 
-            sides.append([p1, p2, q1])
-            sides.append([p2, q1, q2])
+            sides.append([q1, p2, p1])
+            sides.append([q1, q2, p2])
 
         self.polyhedron = lib.Polyhedron(points, sides)
         self.draw()
