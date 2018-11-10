@@ -8,8 +8,8 @@ class Screw(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
 
-        self.width = 200
-        self.height = 200
+        self.width = 400
+        self.height = 400
 
         self.polyhedron = lib.Polyhedron.Cube(lib.Point(0, 0, 0), 0)
         self.camera = lib.Camera.iso()

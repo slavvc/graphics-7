@@ -68,13 +68,16 @@ class Lab6(tk.Frame):
         self.object_var.trace('w', self.set_object)
         tk.Label(self, text='Object:').grid(row=4, column=1)
         tk.Radiobutton(
-            self, text='Cube', variable=self.object_var, value=0
+            self, text='Another', variable=self.object_var, value=0
+        ).grid(row=4, column=2)
+        tk.Radiobutton(
+            self, text='Cube', variable=self.object_var, value=1
         ).grid(row=5, column=2)
         tk.Radiobutton(
-            self, text='Tetrahedron', variable=self.object_var, value=1
+            self, text='Tetrahedron', variable=self.object_var, value=2
         ).grid(row=6, column=2)
         tk.Radiobutton(
-            self, text='Octahedron', variable=self.object_var, value=2
+            self, text='Octahedron', variable=self.object_var, value=3
         ).grid(row=7, column=2)
 
         self.radius_var.set(100)
@@ -377,11 +380,11 @@ class Lab6(tk.Frame):
         except:
             self.radius = 10
         self.read_position()
-        if o == 0:
+        if o == 1:
             self.polyhedron = lib.Polyhedron.Cube(self.position, self.radius)
-        elif o == 1:
-            self.polyhedron = lib.Polyhedron.Tetrahedron(self.position, self.radius)
         elif o == 2:
+            self.polyhedron = lib.Polyhedron.Tetrahedron(self.position, self.radius)
+        elif o == 3:
             self.polyhedron = lib.Polyhedron.Octahedron(self.position, self.radius)
         self.draw()
 
