@@ -331,7 +331,7 @@ class Camera:
         transformed = polyhedron.apply_transform(self.pre_transform)
         points = transformed.points
         lines  = transformed.sides
-        
+
         image = Image.new('RGB', size)
         size = np.array(size)
         l = points.shape[1]
@@ -404,8 +404,8 @@ class Camera:
         lines  = transformed.sides
         normals = transformed.normals
 
-        image = np.ndarray(size + (3,))
-        zbuf = np.zeros(size)
+        image = np.zeros(size + (3,))
+        zbuf = np.full(size, np.finfo('d').max)
         size = np.array(size)
         l = points.shape[1]
         p = np.ones((4, l))
@@ -424,68 +424,51 @@ class Camera:
 
             sorted_p = sorted(line, key=lambda x: pts[1, x])
             p_up = pts[:, sorted_p[2]].reshape(2)
-            r_up = self.vec_view(points[:, sorted_p[2]].reshape(3))
+            r_up = np.sum(self.vec_view(points[:, sorted_p[2]].reshape(3))**2)
             p_mid = pts[:, sorted_p[1]].reshape(2)
-            r_mid = self.vec_view(points[:, sorted_p[1]].reshape(3))
+            r_mid = np.sum(self.vec_view(points[:, sorted_p[1]].reshape(3))**2)
             p_down = pts[:, sorted_p[0]].reshape(2)
-            r_down = self.vec_view(points[:, sorted_p[0]].reshape(3))
-            if int(p_down[1]) != int(p_mid[1]):
-                for y in range(int(p_down[1]), int(p_mid[1])):
-                    if size[1] // 2 - y < 0:
-                        break
-                    if size[1] // 2 - y >= size[1]:
-                        continue
-                    k = (y - p_down[1]) / (p_mid[1] - p_down[1])
-                    x_mid = (p_mid[0] - p_down[0]) * k + p_down[0]
-                    r_mid2 = (r_mid[0] - r_down[0]) * k + r_down[0]
-                    k2 = (y - p_down[1]) / (p_up[1] - p_down[1])
-                    x_up = (p_up[0] - p_down[0]) * k2 + p_down[0]
-                    r_up2 = (r_up[0] - r_down[0]) * k2 + r_down[0]
-                    if x_mid < x_up:
-                        x_left, x_right = int(x_mid), int(x_up)
-                        r_left, r_right = int(r_mid2), int(r_up2)
-                    else:
-                        x_left, x_right = int(x_up), int(x_mid)
-                        r_left, r_right = int(r_up2), int(r_mid2)
-                    x_left = max(-size[0] // 2, x_left)
-                    x_right = min(size[0] - size[0] // 2, x_right)
-                    interp_k = np.linspace(0, 1, x_right - x_left)
-                    interp = interp_k * (r_right - r_left) + r_left
-                    color = np.clip(interp / 50, 0, 1) * (blue - red).reshape(3, 1) + red.reshape(3, 1)
-                    x_left += size[0] // 2
-                    x_right += size[0] // 2
-                    y = size[1] // 2 - y
-                    image[x_left:x_right, y] = np.where((zbuf[x_left:x_right, y] > interp)[:, np.newaxis].repeat(3, axis=1), color.T, image[x_left:x_right, y])
-                    zbuf[x_left:x_right, y] = np.where(zbuf[x_left:x_right, y] > interp, interp, zbuf[x_left:x_right, y])
+            r_down = np.sum(self.vec_view(points[:, sorted_p[0]].reshape(3))**2)
 
-            if int(p_mid[1]) != int(p_up[1]):
-                for y in range(int(p_mid[1]), int(p_up[1] + 1)):
-                    if size[1] // 2 - y < 0:
-                        break
-                    if size[1] // 2 - y >= size[1]:
+            for y in range(int(p_down[1]), int(p_up[1] + 1)):
+                if size[1] // 2 - y < 0:
+                    break
+                if size[1] // 2 - y >= size[1]:
+                    continue
+                if y >= int(p_mid[1]):
+                    if int(p_mid[1]) == int(p_up[1]):
                         continue
                     k = (y - p_mid[1]) / (p_up[1] - p_mid[1])
                     x_mid = (p_up[0] - p_mid[0]) * k + p_mid[0]
-                    r_mid2 = (r_up[0] - r_mid[0]) * k + r_mid[0]
-                    k2 = (y - p_down[1]) / (p_up[1] - p_down[1])
-                    x_up = (p_up[0] - p_down[0]) * k2 + p_down[0]
-                    r_up2 = (r_up[0] - r_down[0]) * k2 + r_down[0]
-                    if x_mid < x_up:
-                        x_left, x_right = int(x_mid), int(x_up)
-                        r_left, r_right = int(r_mid2), int(r_up2)
-                    else:
-                        x_left, x_right = int(x_up), int(x_mid)
-                        r_left, r_right = int(r_up2), int(r_mid2)
-                    x_left = max(-size[0] // 2, x_left)
-                    x_right = min(size[0] - size[0] // 2, x_right)
-                    interp_k = np.linspace(0, 1, x_right - x_left)
-                    interp = interp_k * (r_right - r_left) + r_left
-                    color = np.clip(interp / 50, 0, 1) * (blue - red).reshape(3, 1) + red.reshape(3, 1)
-                    x_left += size[0] // 2
-                    x_right += size[0] // 2
-                    y = size[1] // 2 - y
-                    image[x_left:x_right, y] = np.where((zbuf[x_left:x_right, y] > interp)[:, np.newaxis].repeat(3, axis=1), color.T, image[x_left:x_right, y])
-                    zbuf[x_left:x_right, y] = np.where(zbuf[x_left:x_right, y] > interp, interp, zbuf[x_left:x_right, y])
+                    r_mid2 = (r_up - r_mid) * k + r_mid
+                else:
+                    if int(p_down[1]) == int(p_mid[1]):
+                        continue
+                    k = (y - p_down[1]) / (p_mid[1] - p_down[1])
+                    x_mid = (p_mid[0] - p_down[0]) * k + p_down[0]
+                    r_mid2 = (r_mid - r_down) * k + r_down
+                k2 = (y - p_down[1]) / (p_up[1] - p_down[1])
+                x_up = (p_up[0] - p_down[0]) * k2 + p_down[0]
+                r_up2 = (r_up - r_down) * k2 + r_down
+                if x_mid < x_up:
+                    x_left, x_right = int(x_mid), int(x_up)
+                    r_left, r_right = (r_mid2), (r_up2)
+                else:
+                    x_left, x_right = int(x_up), int(x_mid)
+                    r_left, r_right = (r_up2), (r_mid2)
+                x_left = max(-size[0] // 2, x_left)
+                x_right = min(size[0] - size[0] // 2, x_right)
+                interp_k = np.linspace(0, 1, x_right - x_left)
+                interp = interp_k * (r_right - r_left) + r_left
+                color = np.clip(interp / 2500, 0, 1) * (blue - red).reshape(3, 1) + red.reshape(3, 1)
+                x_left += size[0] // 2
+                x_right += size[0] // 2
+                y = size[1] // 2 - y
+                ln = np.where((zbuf[y, x_left:x_right] > interp)[:, np.newaxis].repeat(3, axis=1), color.T,
+                              image[y, x_left:x_right])
+                image[y, x_left:x_right] = ln
+                zbuf[y, x_left:x_right] = np.where(zbuf[y, x_left:x_right] > interp, interp,
+                                                       zbuf[y, x_left:x_right])
 
         return Image.fromarray(image.astype("uint8"))
 
@@ -496,7 +479,7 @@ class Camera:
             [0, 0, 1, 0],
             [0, 0, 0, 1]
         ], lambda p: np.array([
-            0, 1, 0
+            0, p[1], 0
         ]))
 
     @staticmethod
@@ -525,44 +508,44 @@ class Camera:
         ])
         return Camera(m, #lambda p: vec)
             lambda p: np.array([
-                0, 1, 0
+                0, p[1], 0
             ]),
             tr
         )
 
 if __name__ == "__main__":
-    # import imageio as iio
-    # t = Polyhedron.Octahedron(Point(10,0,0),7)
-    # # print(t.points)
-    # c = Camera.iso()
-    # with iio.get_writer("test.gif", fps=30) as w:
-    #     for i in range(1000):
-    #         tr = Transform.scale(5,5,5).compose(
-    #             Transform.rotate('x', 0).compose(
-    #                 # Transform.rotate('z', 2*np.pi*i/100)
-    #                 # Transform.identity()
-    #                 Transform.rotate_around_line(
-    #                     Line(Point(0,0,0), Point(1-i/1000,0,i/1000)),
-    #                     2*np.pi*i/100
-    #                 )
-    #             )
-    #         )
-    #         # tr = Transform.reflect('yz').compose(tr)
-    #         p = t.apply_relative_transform(tr)
-    #         im=np.array(c.draw((112,112), p.points, p.sides))
-    #         w.append_data(im)
-    s = Polyhedron.Cube(Point(0, 200, 0), 100)
-    s.save_obj('tmp.obj')
-    # t = Polyhedron.load_obj('tmp.obj').apply_relative_transform(Transform.rotate('x', 1))
-    t = Polyhedron.load_obj('deer.obj') \
-        .apply_relative_transform(
-        Transform.rotate('x', np.pi / 2).compose(
-            Transform.scale(*[0.1] * 3)
-        )
-    )
-    t = t.apply_transform(
-        Transform.translate(-150, -850, 0)
-    )
+    import imageio as iio
+    t = Polyhedron.Tetrahedron(Point(0,50,0),50)
+    # print(t.points)
     c = Camera.persp(0.01)
-    # c = Camera.ortho()
-    c.draw((200, 200), t.points, t.sides).show()
+    with iio.get_writer("test.gif", fps=30) as w:
+        for i in range(100):
+            tr = Transform.scale(.5,.5,.5).compose(
+                Transform.rotate('x', 1).compose(
+                    Transform.rotate('z', 2*np.pi*i/100)
+                    # Transform.identity()
+                    # Transform.rotate_around_line(
+                    #     Line(Point(0,0,0), Point(1-i/100,0,i/100)),
+                    #     2*np.pi*i/10
+                    # )
+                )
+            )
+            # tr = Transform.reflect('yz').compose(tr)
+            p = t.apply_relative_transform(tr)
+            im=np.array(c.draw_with_both_culling_and_zbuf((112,112), p))
+            w.append_data(im)
+    # s = Polyhedron.Cube(Point(0, 200, 0), 100)
+    # s.save_obj('tmp.obj')
+    # t = Polyhedron.load_obj('tmp.obj').apply_relative_transform(Transform.rotate('x', 1))
+    # t = Polyhedron.load_obj('deer.obj') \
+    #     .apply_relative_transform(
+    #     Transform.rotate('x', np.pi / 2).compose(
+    #         Transform.scale(*[0.1] * 3)
+    #     )
+    # )
+    # t = t.apply_transform(
+    #     Transform.translate(-150, -850, 0)
+    # )
+    # c = Camera.persp(0.01)
+    # # c = Camera.ortho()
+    # c.draw((200, 200), t.points, t.sides).show()
