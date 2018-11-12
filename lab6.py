@@ -259,7 +259,8 @@ class Lab6(tk.Frame):
         else:
             transformed = transformed.apply_relative_transform(self.transform)
         # self.im = self.camera.draw(self.size, transformed.points, transformed.sides)
-        self.im = self.camera.draw_with_culling(self.size, transformed)
+        # self.im = self.camera.draw_with_culling(self.size, transformed)
+        self.im = self.camera.draw_with_both_culling_and_zbuf(self.size, transformed)
         # self.im.show()
         self.pim = ImageTk.PhotoImage(self.im)
         self.view.configure(image=self.pim)

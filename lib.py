@@ -340,6 +340,8 @@ class Camera:
         r = self.matrix.dot(p)
         pts = (r / r[2, :])[:2, :]
         draw = ImageDraw.Draw(image)
+        red = np.array((255, 0, 0))
+        blue = np.array((0, 0, 255))
         for line in lines:
             for i in range(len(line)):
                 b = pts[:, line[i]].T + size / 2
@@ -352,8 +354,6 @@ class Camera:
                                 points[:, line[(i + 1) % len(line)]][1] - points[:, line[i]][1]) * j / 10
                     k = pz / 50
                     k = 1 if k > 1 else (0 if k < 0 else k)
-                    red = np.array((255, 0, 0))
-                    blue = np.array((0, 0, 255))
                     col = (red + k * (blue - red)).astype('int')
                     draw.line((pb[0], size[1] - pb[1], pe[0], size[1] - pe[1]), fill=tuple(col))
 
@@ -373,6 +373,8 @@ class Camera:
         r = self.matrix.dot(p)
         pts = (r / r[2, :])[:2, :]
         draw = ImageDraw.Draw(image)
+        red = np.array((255, 0, 0))
+        blue = np.array((0, 0, 255))
         for k in range(len(lines)):
             line = lines[k]
             n = normals[k]
@@ -384,7 +386,6 @@ class Camera:
             for i in range(len(line)):
                 b = pts[:, line[i]].T + size / 2
                 e = pts[:, line[(i + 1) % len(line)]].T + size / 2
-                # draw.line((b[0], size[1]-b[1], e[0], size[1]-e[1]), fill=(255,0,0))
                 for j in range(10):
                     pb = b + (e - b) / 10 * j
                     pe = b + (e - b) / 10 * (j + 1)
@@ -392,13 +393,101 @@ class Camera:
                                 points[:, line[(i + 1) % len(line)]][1] - points[:, line[i]][1]) * j / 10
                     k = pz / 50
                     k = 1 if k > 1 else (0 if k < 0 else k)
-                    red = np.array((255, 0, 0))
-                    blue = np.array((0, 0, 255))
                     col = (red + k * (blue - red)).astype('int')
                     draw.line((pb[0], size[1] - pb[1], pe[0], size[1] - pe[1]), fill=tuple(col))
 
         return image
 
+    def draw_with_both_culling_and_zbuf(self, size, polyhedron):
+        transformed = polyhedron.apply_transform(self.pre_transform)
+        points = transformed.points
+        lines  = transformed.sides
+        normals = transformed.normals
+
+        image = np.ndarray(size + (3,))
+        zbuf = np.zeros(size)
+        size = np.array(size)
+        l = points.shape[1]
+        p = np.ones((4, l))
+        p[:3, :] = points
+        r = self.matrix.dot(p)
+        pts = (r / r[2, :])[:2, :]
+        red = np.array((255, 0, 0))
+        blue = np.array((0, 0, 255))
+        for k in range(len(lines)):
+            line = lines[k]
+            n = normals[k]
+            vec = self.vec_view(points[:, line[0]].reshape(3))
+
+            if n.dot(vec) >= 0:
+                continue
+
+            sorted_p = sorted(line, key=lambda x: pts[1, x])
+            p_up = pts[:, sorted_p[2]].reshape(2)
+            r_up = self.vec_view(points[:, sorted_p[2]].reshape(3))
+            p_mid = pts[:, sorted_p[1]].reshape(2)
+            r_mid = self.vec_view(points[:, sorted_p[1]].reshape(3))
+            p_down = pts[:, sorted_p[0]].reshape(2)
+            r_down = self.vec_view(points[:, sorted_p[0]].reshape(3))
+            if int(p_down[1]) != int(p_mid[1]):
+                for y in range(int(p_down[1]), int(p_mid[1])):
+                    if size[1] // 2 - y < 0:
+                        break
+                    if size[1] // 2 - y >= size[1]:
+                        continue
+                    k = (y - p_down[1]) / (p_mid[1] - p_down[1])
+                    x_mid = (p_mid[0] - p_down[0]) * k + p_down[0]
+                    r_mid2 = (r_mid[0] - r_down[0]) * k + r_down[0]
+                    k2 = (y - p_down[1]) / (p_up[1] - p_down[1])
+                    x_up = (p_up[0] - p_down[0]) * k2 + p_down[0]
+                    r_up2 = (r_up[0] - r_down[0]) * k2 + r_down[0]
+                    if x_mid < x_up:
+                        x_left, x_right = int(x_mid), int(x_up)
+                        r_left, r_right = int(r_mid2), int(r_up2)
+                    else:
+                        x_left, x_right = int(x_up), int(x_mid)
+                        r_left, r_right = int(r_up2), int(r_mid2)
+                    x_left = max(-size[0] // 2, x_left)
+                    x_right = min(size[0] - size[0] // 2, x_right)
+                    interp_k = np.linspace(0, 1, x_right - x_left)
+                    interp = interp_k * (r_right - r_left) + r_left
+                    color = np.clip(interp / 50, 0, 1) * (blue - red).reshape(3, 1) + red.reshape(3, 1)
+                    x_left += size[0] // 2
+                    x_right += size[0] // 2
+                    y = size[1] // 2 - y
+                    image[x_left:x_right, y] = np.where((zbuf[x_left:x_right, y] > interp)[:, np.newaxis].repeat(3, axis=1), color.T, image[x_left:x_right, y])
+                    zbuf[x_left:x_right, y] = np.where(zbuf[x_left:x_right, y] > interp, interp, zbuf[x_left:x_right, y])
+
+            if int(p_mid[1]) != int(p_up[1]):
+                for y in range(int(p_mid[1]), int(p_up[1] + 1)):
+                    if size[1] // 2 - y < 0:
+                        break
+                    if size[1] // 2 - y >= size[1]:
+                        continue
+                    k = (y - p_mid[1]) / (p_up[1] - p_mid[1])
+                    x_mid = (p_up[0] - p_mid[0]) * k + p_mid[0]
+                    r_mid2 = (r_up[0] - r_mid[0]) * k + r_mid[0]
+                    k2 = (y - p_down[1]) / (p_up[1] - p_down[1])
+                    x_up = (p_up[0] - p_down[0]) * k2 + p_down[0]
+                    r_up2 = (r_up[0] - r_down[0]) * k2 + r_down[0]
+                    if x_mid < x_up:
+                        x_left, x_right = int(x_mid), int(x_up)
+                        r_left, r_right = int(r_mid2), int(r_up2)
+                    else:
+                        x_left, x_right = int(x_up), int(x_mid)
+                        r_left, r_right = int(r_up2), int(r_mid2)
+                    x_left = max(-size[0] // 2, x_left)
+                    x_right = min(size[0] - size[0] // 2, x_right)
+                    interp_k = np.linspace(0, 1, x_right - x_left)
+                    interp = interp_k * (r_right - r_left) + r_left
+                    color = np.clip(interp / 50, 0, 1) * (blue - red).reshape(3, 1) + red.reshape(3, 1)
+                    x_left += size[0] // 2
+                    x_right += size[0] // 2
+                    y = size[1] // 2 - y
+                    image[x_left:x_right, y] = np.where((zbuf[x_left:x_right, y] > interp)[:, np.newaxis].repeat(3, axis=1), color.T, image[x_left:x_right, y])
+                    zbuf[x_left:x_right, y] = np.where(zbuf[x_left:x_right, y] > interp, interp, zbuf[x_left:x_right, y])
+
+        return Image.fromarray(image.astype("uint8"))
 
     @staticmethod
     def ortho():
