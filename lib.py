@@ -81,11 +81,27 @@ class Polyhedron:
         ).astype(np.float64)
         self.sides = sides
         self.center = self.find_center()
+        self.normals = self.find_normals()
 
     def find_center(self):
         s = self.points.sum(axis=1)
         s /= self.points.shape[1]
         return Point(s.reshape(3))
+
+    def find_normals(self):
+        normals = np.ndarray((len(self.sides), 3))
+        for i in range(len(self.sides)):
+            s = self.sides[i]
+            p = self.points[:, s[0]]
+            p_next = self.points[:, s[1]]
+            p_prev = self.points[:, s[-1]]
+
+            v_out = p_next-p
+            v_in = p-p_prev
+
+            n = np.cross(v_in, v_out)
+            normals[i,:] = n
+        return normals
 
     def apply_transform(self, transform):
         l = self.points.shape[1]
@@ -144,7 +160,7 @@ class Polyhedron:
             [0, 1, 2],
             [0, 2, 3],
             [0, 3, 1],
-            [1, 2, 3]
+            [1, 3, 2]
         ])
         p = p.apply_transform(Transform.translate(center.x(), center.y(), center.z()))
         return p
@@ -163,11 +179,11 @@ class Polyhedron:
         ]
         sides = [
             [0, 1, 2], [0, 2, 3],
-            [4, 5, 6], [4, 6, 7],
-            [0, 1, 5], [0, 5, 4],
-            [3, 0, 4], [3, 4, 7],
-            [1, 2, 6], [1, 6, 5],
-            [2, 3, 7], [2, 7, 6]
+            [4, 6, 5], [4, 7, 6],
+            [0, 5, 1], [0, 4, 5],
+            [3, 4, 0], [3, 7, 4],
+            [1, 6, 2], [1, 5, 6],
+            [2, 7, 3], [2, 6, 7]
         ]
         p = Polyhedron(points, sides)
         p = p.apply_transform(Transform.translate(
@@ -192,10 +208,10 @@ class Polyhedron:
             [0, 2, 3],
             [0, 3, 4],
             [0, 4, 1],
-            [5, 1, 2],
-            [5, 2, 3],
-            [5, 3, 4],
-            [5, 4, 1]
+            [1, 5, 2],
+            [2, 5, 3],
+            [3, 5, 4],
+            [4, 5, 1]
         ]
         p = Polyhedron(points, sides)
         p = p.apply_transform(Transform.translate(
@@ -305,11 +321,17 @@ class Transform:
 
 
 class Camera:
-    def __init__(self, matrix):
+    def __init__(self, matrix, vec_view, pre_transform=Transform.identity()):
         self.matrix = np.ndarray((3, 4))
         self.matrix[...] = matrix
+        self.vec_view = vec_view
+        self.pre_transform = pre_transform
 
-    def draw(self, size, points, lines):
+    def draw(self, size, polyhedron):
+        transformed = polyhedron.apply_transform(self.pre_transform)
+        points = transformed.points
+        lines  = transformed.sides
+        
         image = Image.new('RGB', size)
         size = np.array(size)
         l = points.shape[1]
@@ -337,34 +359,87 @@ class Camera:
 
         return image
 
+    def draw_with_culling(self, size, polyhedron):
+        transformed = polyhedron.apply_transform(self.pre_transform)
+        points = transformed.points
+        lines  = transformed.sides
+        normals = transformed.normals
+
+        image = Image.new('RGB', size)
+        size = np.array(size)
+        l = points.shape[1]
+        p = np.ones((4, l))
+        p[:3, :] = points
+        r = self.matrix.dot(p)
+        pts = (r / r[2, :])[:2, :]
+        draw = ImageDraw.Draw(image)
+        for k in range(len(lines)):
+            line = lines[k]
+            n = normals[k]
+            vec = self.vec_view(points[:, line[0]].reshape(3))
+
+            if n.dot(vec) >= 0:
+                continue
+
+            for i in range(len(line)):
+                b = pts[:, line[i]].T + size / 2
+                e = pts[:, line[(i + 1) % len(line)]].T + size / 2
+                # draw.line((b[0], size[1]-b[1], e[0], size[1]-e[1]), fill=(255,0,0))
+                for j in range(10):
+                    pb = b + (e - b) / 10 * j
+                    pe = b + (e - b) / 10 * (j + 1)
+                    pz = points[:, line[i]][1] + (
+                                points[:, line[(i + 1) % len(line)]][1] - points[:, line[i]][1]) * j / 10
+                    k = pz / 50
+                    k = 1 if k > 1 else (0 if k < 0 else k)
+                    red = np.array((255, 0, 0))
+                    blue = np.array((0, 0, 255))
+                    col = (red + k * (blue - red)).astype('int')
+                    draw.line((pb[0], size[1] - pb[1], pe[0], size[1] - pe[1]), fill=tuple(col))
+
+        return image
+
+
     @staticmethod
     def ortho():
         return Camera([
             [1, 0, 0, 0],
             [0, 0, 1, 0],
             [0, 0, 0, 1]
-        ])
+        ], lambda p: np.array([
+            0, 1, 0
+        ]))
 
     @staticmethod
     def persp(k):
         return Camera([
             [1, 0, 0, 0],
             [0, 0, 1, 0],
-            [0, k, 0, 1]
-        ])
+            [0, k, 0, 0]
+        ], lambda p: p)
 
     @staticmethod
     def iso(a=np.arcsin(np.tan(30 / 180 * np.pi)), b=np.pi / 4):
         tr = Transform.rotate('x', a).compose(
             Transform.rotate('z', b)
         )
+        # vec = tr.matrix.dot(
+        #     np.array([
+        #         0, 1, 0, 1
+        #     ]).reshape((4,1))
+        # )
+        # vec = (vec / vec[3,:])[:3, :]
         m = np.array([
             [1, 0, 0, 0],
             [0, 0, 1, 0],
             [0, 0, 0, 1]
-        ]).dot(tr.matrix)
-        return Camera(m)
-
+        ])
+        return Camera(m, #lambda p: vec)
+            lambda p: np.array([
+                0, 1, 0
+            ]),
+            tr
+        )
 
 if __name__ == "__main__":
     # import imageio as iio

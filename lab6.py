@@ -15,6 +15,9 @@ class Lab6(tk.Frame):
         self.transform = lib.Transform.identity()
         self.matrix_transform = lib.Transform.identity()
         self.choice_transform = lib.Transform.identity()
+        self.keyboard_rotate_transform = lib.Transform.identity()
+
+        self.key_bindid = root.bind('<Key>', self.keyboard_rotate)
 
         self.camera_var = tk.IntVar()
         self.persp_k_var = tk.StringVar()
@@ -245,15 +248,48 @@ class Lab6(tk.Frame):
         self.draw()
 
     def draw(self, *args):
-        self.transform = self.matrix_transform.compose(self.choice_transform)
+        self.transform = self.matrix_transform.compose(
+            self.choice_transform
+        )
+        transformed = self.polyhedron.apply_relative_transform(
+            self.keyboard_rotate_transform
+        )
         if self.transform_mode_var.get() == 0:
-            transformed = self.polyhedron.apply_transform(self.transform)
+            transformed = transformed.apply_transform(self.transform)
         else:
-            transformed = self.polyhedron.apply_relative_transform(self.transform)
-        self.im = self.camera.draw(self.size, transformed.points, transformed.sides)
+            transformed = transformed.apply_relative_transform(self.transform)
+        # self.im = self.camera.draw(self.size, transformed.points, transformed.sides)
+        self.im = self.camera.draw_with_culling(self.size, transformed)
         # self.im.show()
         self.pim = ImageTk.PhotoImage(self.im)
         self.view.configure(image=self.pim)
+
+    def keyboard_rotate(self, e):
+        if e.char == 'a':
+            self.keyboard_rotate_transform = lib.Transform.rotate('x', 0.1).compose(
+                self.keyboard_rotate_transform
+            )
+        elif e.char == 'd':
+            self.keyboard_rotate_transform = lib.Transform.rotate('x', -0.1).compose(
+                self.keyboard_rotate_transform
+            )
+        elif e.char == 'w':
+            self.keyboard_rotate_transform = lib.Transform.rotate('y', 0.1).compose(
+                self.keyboard_rotate_transform
+            )
+        elif e.char == 's':
+            self.keyboard_rotate_transform = lib.Transform.rotate('y', -0.1).compose(
+                self.keyboard_rotate_transform
+            )
+        elif e.char == 'q':
+            self.keyboard_rotate_transform = lib.Transform.rotate('z', 0.1).compose(
+                self.keyboard_rotate_transform
+            )
+        elif e.char == 'e':
+            self.keyboard_rotate_transform = lib.Transform.rotate('z', -0.1).compose(
+                self.keyboard_rotate_transform
+            )
+        self.draw()
 
     def read_transform_choice_reflect(self, *args):
         plane = self.transform_choice_reflect_var.get()
@@ -346,7 +382,7 @@ class Lab6(tk.Frame):
             self.persp_k = float(self.persp_k_var.get())
         except:
             # self.persp_k_var.set("error")
-            self.persp_k = 0.1
+            self.persp_k = 0.01
         if self.camera_var.get() == 1:
             self.camera = lib.Camera.persp(self.persp_k)
         self.draw()

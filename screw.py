@@ -73,7 +73,7 @@ class Screw(tk.Frame):
         transform = lib.Transform.rotate(self.axis_var.get(), self.angle)
         polyhedron = lib.Polyhedron(points, [])
         sides = []
-        print(self.angle)
+        # print(self.angle)
         for _ in range(int(2 * pi / self.angle)):
             polyhedron2 = polyhedron.apply_transform(transform)
             ind_now = len(points)
@@ -104,6 +104,6 @@ class Screw(tk.Frame):
         self.draw()
 
     def draw(self):
-        im = self.camera.draw((self.width, self.height), self.polyhedron.points, self.polyhedron.sides)
+        im = self.camera.draw((self.width, self.height), self.polyhedron)
         self.pim = ImageTk.PhotoImage(im)
         self.render.configure(image=self.pim)

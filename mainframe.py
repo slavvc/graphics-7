@@ -44,5 +44,14 @@ class Main:
         self.frames[idx].polyhedron = self.polyhedron
         fr = self.frames[idx]
         fr.grid(row=1, column=0)
+        self.rebind(self.current, idx)
         self.current = idx
         self.frames[self.current].draw()
+        self.frames[idx].focus()
+
+    def rebind(self, prev, curr):
+        if prev == 0:
+            self.root.unbind('<Key>', self.frames[0].key_bindid)
+
+        if curr == 0:
+            self.frames[0].key_bindid = self.root.bind('<Key>', self.frames[0].keyboard_rotate)
