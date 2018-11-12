@@ -456,8 +456,8 @@ class Camera:
                 else:
                     x_left, x_right = int(x_up), int(x_mid)
                     r_left, r_right = (r_up2), (r_mid2)
-                x_left = max(-size[0] // 2, x_left)
-                x_right = min(size[0] - size[0] // 2, x_right)
+                x_left = min(max(-size[0] // 2, x_left), size[0] // 2)
+                x_right = max(min(size[0] // 2, x_right), -size[0] // 2)
                 interp_k = np.linspace(0, 1, x_right - x_left)
                 interp = interp_k * (r_right - r_left) + r_left
                 color = np.clip(interp / 2500, 0, 1) * (blue - red).reshape(3, 1) + red.reshape(3, 1)
@@ -517,11 +517,11 @@ if __name__ == "__main__":
     import imageio as iio
     t = Polyhedron.Cube(Point(0,50,0),50)
     # print(t.points)
-    c = Camera.ortho()
+    c = Camera.iso()
     with iio.get_writer("test.gif", fps=30) as w:
         for i in range(100):
             tr = Transform.scale(1,1,1).compose(
-                Transform.rotate('x', 1).compose(
+                Transform.rotate('x', 0).compose(
                     Transform.rotate('z', 2*np.pi*i/100)
                     # Transform.identity()
                     # Transform.rotate_around_line(
