@@ -412,8 +412,8 @@ class Camera:
         p[:3, :] = points
         r = self.matrix.dot(p)
         pts = (r / r[2, :])[:2, :]
-        red = np.array((255, 0, 0))
-        blue = np.array((0, 0, 255))
+        red = np.array((255, 0, 127))
+        blue = np.array((0, 127, 255))
         for k in range(len(lines)):
             line = lines[k]
             n = normals[k]
@@ -515,12 +515,12 @@ class Camera:
 
 if __name__ == "__main__":
     import imageio as iio
-    t = Polyhedron.Tetrahedron(Point(0,50,0),50)
+    t = Polyhedron.Cube(Point(0,50,0),50)
     # print(t.points)
-    c = Camera.persp(0.01)
+    c = Camera.ortho()
     with iio.get_writer("test.gif", fps=30) as w:
         for i in range(100):
-            tr = Transform.scale(.5,.5,.5).compose(
+            tr = Transform.scale(1,1,1).compose(
                 Transform.rotate('x', 1).compose(
                     Transform.rotate('z', 2*np.pi*i/100)
                     # Transform.identity()
