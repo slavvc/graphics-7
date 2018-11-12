@@ -412,37 +412,41 @@ class Camera:
         p[:3, :] = points
         r = self.matrix.dot(p)
         pts = (r / r[2, :])[:2, :]
-        red = np.array((255, 0, 127))
-        blue = np.array((0, 127, 255))
-        for k in range(len(lines)):
-            line = lines[k]
-            n = normals[k]
+
+        # front_col = np.array((255, 0, 127))
+        # back_col = np.array((0, 127, 255))
+        front_col = np.array((255, 0, 0))
+        back_col = np.array((255, 255, 255))
+
+        for j in range(len(lines)):
+            line = lines[j]
+            n = normals[j]
             vec = self.vec_view(points[:, line[0]].reshape(3))
 
             if n.dot(vec) >= 0:
                 continue
 
             sorted_p = sorted(line, key=lambda x: pts[1, x])
-            p_up = pts[:, sorted_p[2]].reshape(2)
+            p_up = pts[:, sorted_p[2]].reshape(2).astype('int')
             r_up = np.sum(self.vec_view(points[:, sorted_p[2]].reshape(3))**2)
-            p_mid = pts[:, sorted_p[1]].reshape(2)
+            p_mid = pts[:, sorted_p[1]].reshape(2).astype('int')
             r_mid = np.sum(self.vec_view(points[:, sorted_p[1]].reshape(3))**2)
-            p_down = pts[:, sorted_p[0]].reshape(2)
+            p_down = pts[:, sorted_p[0]].reshape(2).astype('int')
             r_down = np.sum(self.vec_view(points[:, sorted_p[0]].reshape(3))**2)
 
-            for y in range(int(p_down[1]), int(p_up[1] + 1)):
+            for y in range((p_down[1]), (p_up[1] + 1)):
                 if size[1] // 2 - y < 0:
                     break
                 if size[1] // 2 - y >= size[1]:
                     continue
                 if y >= int(p_mid[1]):
-                    if int(p_mid[1]) == int(p_up[1]):
+                    if (p_mid[1]) == (p_up[1]):
                         continue
                     k = (y - p_mid[1]) / (p_up[1] - p_mid[1])
                     x_mid = (p_up[0] - p_mid[0]) * k + p_mid[0]
                     r_mid2 = (r_up - r_mid) * k + r_mid
                 else:
-                    if int(p_down[1]) == int(p_mid[1]):
+                    if (p_down[1]) == (p_mid[1]):
                         continue
                     k = (y - p_down[1]) / (p_mid[1] - p_down[1])
                     x_mid = (p_mid[0] - p_down[0]) * k + p_down[0]
@@ -459,8 +463,12 @@ class Camera:
                 x_left = min(max(-size[0] // 2, x_left), size[0] // 2)
                 x_right = max(min(size[0] // 2, x_right), -size[0] // 2)
                 interp_k = np.linspace(0, 1, x_right - x_left)
+
                 interp = interp_k * (r_right - r_left) + r_left
-                color = np.clip(interp / 2500, 0, 1) * (blue - red).reshape(3, 1) + red.reshape(3, 1)
+
+                # color = np.clip(interp / 2500, 0, 1) * (back_col - front_col).reshape(3, 1) + front_col.reshape(3, 1)
+                color = np.ones_like(interp) * (j / len(lines)) * (back_col - front_col).reshape(3, 1) + front_col.reshape(3, 1)
+
                 x_left += size[0] // 2
                 x_right += size[0] // 2
                 y = size[1] // 2 - y
@@ -515,14 +523,14 @@ class Camera:
 
 if __name__ == "__main__":
     import imageio as iio
-    t = Polyhedron.Cube(Point(0,50,0),50)
+    t = Polyhedron.Octahedron(Point(0,40,0),20)
     # print(t.points)
-    c = Camera.iso()
+    c = Camera.persp(0.012)
     with iio.get_writer("test.gif", fps=30) as w:
         for i in range(100):
             tr = Transform.scale(1,1,1).compose(
-                Transform.rotate('x', 0).compose(
-                    Transform.rotate('z', 2*np.pi*i/100)
+                Transform.rotate('x', 0.2).compose(
+                    Transform.rotate('z', 2*np.pi*i/100)#60
                     # Transform.identity()
                     # Transform.rotate_around_line(
                     #     Line(Point(0,0,0), Point(1-i/100,0,i/100)),
