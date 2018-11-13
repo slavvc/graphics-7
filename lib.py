@@ -321,11 +321,19 @@ class Transform:
 
 
 class Camera:
-    def __init__(self, matrix, vec_view, pre_transform=Transform.identity()):
+    def __init__(self, matrix, vec_view, pre_transform=Transform.identity(), pos=[0]*3, angles=[0]*3):
         self.matrix = np.ndarray((3, 4))
         self.matrix[...] = matrix
         self.vec_view = vec_view
-        self.pre_transform = pre_transform
+        self.pre_transform = pre_transform.compose(
+            Transform.rotate('x', angles[0]).compose(
+                Transform.rotate('y', angles[1]).compose(
+                    Transform.rotate('z', angles[2]).compose(
+                        Transform.translate(*pos)
+                    )
+                )
+            )
+        )
 
     def draw(self, size, polyhedron):
         transformed = polyhedron.apply_transform(self.pre_transform)
@@ -481,25 +489,26 @@ class Camera:
         return Image.fromarray(image.astype("uint8"))
 
     @staticmethod
-    def ortho():
+    def ortho(pos=[0]*3, angles=[0]*3):
         return Camera([
             [1, 0, 0, 0],
             [0, 0, 1, 0],
             [0, 0, 0, 1]
         ], lambda p: np.array([
             0, p[1], 0
-        ]))
+        ]), pos=pos, angles=angles)
 
     @staticmethod
-    def persp(k):
+    def persp(k, pos=[0]*3, angles=[0]*3):
         return Camera([
             [1, 0, 0, 0],
             [0, 0, 1, 0],
             [0, k, 0, 0]
-        ], lambda p: p)
+        ], lambda p: p,
+            pos=pos, angles=angles)
 
     @staticmethod
-    def iso(a=np.arcsin(np.tan(30 / 180 * np.pi)), b=np.pi / 4):
+    def iso(a=np.arcsin(np.tan(30 / 180 * np.pi)), b=np.pi / 4, pos=[0]*3, angles=[0]*3):
         tr = Transform.rotate('x', a).compose(
             Transform.rotate('z', b)
         )
@@ -518,7 +527,8 @@ class Camera:
             lambda p: np.array([
                 0, p[1], 0
             ]),
-            tr
+            tr,
+            pos=pos, angles=angles
         )
 
 if __name__ == "__main__":
