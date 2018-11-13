@@ -326,10 +326,10 @@ class Camera:
         self.matrix[...] = matrix
         self.vec_view = vec_view
         self.pre_transform = pre_transform.compose(
-            Transform.rotate('x', angles[0]).compose(
-                Transform.rotate('y', angles[1]).compose(
-                    Transform.rotate('z', angles[2]).compose(
-                        Transform.translate(*pos)
+            Transform.rotate('x', -angles[0]).compose(
+                Transform.rotate('y', -angles[1]).compose(
+                    Transform.rotate('z', -angles[2]).compose(
+                        Transform.translate(-pos[0], -pos[1], -pos[2])
                     )
                 )
             )
@@ -508,7 +508,7 @@ class Camera:
             pos=pos, angles=angles)
 
     @staticmethod
-    def iso(a=np.arcsin(np.tan(30 / 180 * np.pi)), b=np.pi / 4, pos=[0]*3, angles=[0]*3):
+    def iso(a=np.arcsin(np.tan(30 / 180 * np.pi)), b=np.pi / 4, pos=[0,0,0], angles=[0,0,0]):
         tr = Transform.rotate('x', a).compose(
             Transform.rotate('z', b)
         )

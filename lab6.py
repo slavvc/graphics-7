@@ -11,13 +11,13 @@ class Lab6(tk.Frame):
         self.size = (400, 400)
 
         self.polyhedron = lib.Polyhedron.Cube(lib.Point(0, 0, 0), 100)
-        self.camera = lib.Camera.ortho()
+        self.camera = lib.Camera.ortho(pos=[0, -100, 0], angles=[0, 1, 0])
         self.transform = lib.Transform.identity()
         self.matrix_transform = lib.Transform.identity()
         self.choice_transform = lib.Transform.identity()
         self.keyboard_rotate_transform = lib.Transform.identity()
 
-        self.key_bindid = root.bind('<Key>', self.keyboard_rotate)
+        # self.key_bindid = root.bind('<Key>', self.keyboard_rotate)
 
         self.camera_var = tk.IntVar()
         self.persp_k_var = tk.StringVar()
@@ -290,6 +290,7 @@ class Lab6(tk.Frame):
             self.keyboard_rotate_transform = lib.Transform.rotate('z', -0.1).compose(
                 self.keyboard_rotate_transform
             )
+        print('keyb')
         self.draw()
 
     def read_transform_choice_reflect(self, *args):

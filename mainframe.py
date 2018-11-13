@@ -37,6 +37,8 @@ class Main:
                        CameraFrame(root)]
         self.frames[self.current].grid(row=1, column=0)
 
+        self.rebind(-1, 0)
+
         self.menu_var.trace("w", self.change_menu)
 
     def change_menu(self, *args):
@@ -55,6 +57,10 @@ class Main:
     def rebind(self, prev, curr):
         if prev == 0:
             self.root.unbind('<Key>', self.frames[0].key_bindid)
+        elif prev == 4:
+            self.root.unbind('<Key>', self.frames[4].key_bindid)
 
         if curr == 0:
             self.frames[0].key_bindid = self.root.bind('<Key>', self.frames[0].keyboard_rotate)
+        elif curr == 4:
+            self.frames[4].key_bindid = self.root.bind('<Key>', self.frames[4].keyboard_rotate)
