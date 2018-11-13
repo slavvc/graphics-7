@@ -29,17 +29,17 @@ class CameraFrame(tk.Frame):
             tk.Label(self, text=chr(ord('x') + i)).grid(row=0, column=i*2+1)
             self.pos_entries[i].grid(row=0, column=(i + 1) * 2)
 
-        self.key_bindid = root.bind('<Key>', self.keyboard_rotate)
-
         self.draw()
 
     def read_pos(self, *args):
-        try:
-            for i in range(3):
+        for i in range(3):
+            try:
                 self.pos[i] = int(self.pos_vars[i].get())
-        except:
-            pos = [0, 0, 0]
+            except:
+                self.pos[i] = 0
+
         self.camera = lib.Camera.persp(0.01, self.pos, self.angles)
+        self.draw()
 
     def keyboard_rotate(self, e):
         if e.char == 'a':
@@ -54,6 +54,8 @@ class CameraFrame(tk.Frame):
             self.angles[2] += 0.1
         elif e.char == 'e':
             self.angles[2] -= 0.1
+
+        self.camera = lib.Camera.persp(0.01, self.pos, self.angles)
         self.draw()
 
     def draw(self, *args):
