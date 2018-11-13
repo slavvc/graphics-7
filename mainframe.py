@@ -4,6 +4,7 @@ from lab6 import Lab6
 from graphics import Graphic
 from saveload import SaveLoad
 from screw import Screw
+from camera import CameraFrame
 
 
 class Main:
@@ -14,7 +15,8 @@ class Main:
             'lab6',
             'graphic',
             'save-load',
-            'screw'
+            'screw',
+            'camera'
         ]
 
         self.polyhedron = lib.Polyhedron.Cube(lib.Point(0, 0, 0), 100)
@@ -31,7 +33,8 @@ class Main:
         self.frames = [Lab6(root),
                        Graphic(root),
                        SaveLoad(root),
-                       Screw(root)]
+                       Screw(root),
+                       CameraFrame(root)]
         self.frames[self.current].grid(row=1, column=0)
 
         self.menu_var.trace("w", self.change_menu)
