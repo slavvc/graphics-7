@@ -36,13 +36,13 @@ class CameraFrame(tk.Frame):
         elif e.char == 'e':
             self.angles[2] -= 0.1
         elif e.char == 'i':
-            self.pos[0] += 5
-        elif e.char == 'k':
-            self.pos[0] -= 5
-        elif e.char == 'j':
             self.pos[1] += 5
-        elif e.char == 'l':
+        elif e.char == 'k':
             self.pos[1] -= 5
+        elif e.char == 'j':
+            self.pos[0] -= 5
+        elif e.char == 'l':
+            self.pos[0] += 5
         elif e.char == 'u':
             self.pos[2] += 5
         elif e.char == 'o':
