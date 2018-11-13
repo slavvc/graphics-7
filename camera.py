@@ -7,38 +7,19 @@ class CameraFrame(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
 
-        self.size = (400, 400)
+        self.size = (600, 800)
 
         self.transform = lib.Transform.identity()
 
         self.polyhedron = lib.Polyhedron.Cube(lib.Point(0, 0, 0), 0)
-        self.camera = lib.Camera.iso()
 
         self.render = tk.Label(self)
         self.render.grid(row=0, column=0, rowspan=4)
 
         self.pos = [0, 0, 0]
         self.angles = [0, 0, 0]
-
-        self.pos_vars = []
-        self.pos_entries = []
-        for i in range(3):
-            self.pos_vars.append(tk.StringVar(self))
-            self.pos_vars[i].trace('w', self.read_pos)
-            self.pos_entries.append(tk.Entry(self, textvar=self.pos_vars[i]))
-            tk.Label(self, text=chr(ord('x') + i)).grid(row=0, column=i*2+1)
-            self.pos_entries[i].grid(row=0, column=(i + 1) * 2)
-
-        self.draw()
-
-    def read_pos(self, *args):
-        for i in range(3):
-            try:
-                self.pos[i] = int(self.pos_vars[i].get())
-            except:
-                self.pos[i] = 0
-
         self.camera = lib.Camera.persp(0.01, self.pos, self.angles)
+
         self.draw()
 
     def keyboard_rotate(self, e):
@@ -54,6 +35,18 @@ class CameraFrame(tk.Frame):
             self.angles[2] += 0.1
         elif e.char == 'e':
             self.angles[2] -= 0.1
+        elif e.char == 'i':
+            self.pos[0] += 5
+        elif e.char == 'k':
+            self.pos[0] -= 5
+        elif e.char == 'j':
+            self.pos[1] += 5
+        elif e.char == 'l':
+            self.pos[1] -= 5
+        elif e.char == 'u':
+            self.pos[2] += 5
+        elif e.char == 'o':
+            self.pos[2] -= 5
 
         self.camera = lib.Camera.persp(0.01, self.pos, self.angles)
         self.draw()

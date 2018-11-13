@@ -480,6 +480,8 @@ class Camera:
                 x_left += size[0] // 2
                 x_right += size[0] // 2
                 y = size[1] // 2 - y
+                if y >= size[0] or y <= 0:
+                    continue
                 ln = np.where((zbuf[y, x_left:x_right] > interp)[:, np.newaxis].repeat(3, axis=1), color.T,
                               image[y, x_left:x_right])
                 image[y, x_left:x_right] = ln
