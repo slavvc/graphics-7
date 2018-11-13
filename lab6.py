@@ -290,7 +290,6 @@ class Lab6(tk.Frame):
             self.keyboard_rotate_transform = lib.Transform.rotate('z', -0.1).compose(
                 self.keyboard_rotate_transform
             )
-        print('keyb')
         self.draw()
 
     def read_transform_choice_reflect(self, *args):
