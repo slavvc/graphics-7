@@ -505,8 +505,8 @@ class Camera:
         return Camera([
             [1, 0, 0, 0],
             [0, 0, 1, 0],
-            [0, k, 0, 0]
-        ], lambda p: p,
+            [0, k, 0, 1]
+        ], lambda p: np.array([p[0], p[1]+1/k, p[2]]),
             pos=pos, angles=angles)
 
     @staticmethod
