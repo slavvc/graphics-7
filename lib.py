@@ -100,16 +100,19 @@ class Polyhedron:
             v_in = p-p_prev
 
             n = np.cross(v_in, v_out)
-            normals[i,:] = n
+            normals[i, :] = n / (n**2).sum()**.5
         return normals
 
-    def apply_transform(self, transform):
-        l = self.points.shape[1]
-        p = np.ones((4, l))
-        p[:3, :] = self.points
-        r = transform.matrix.dot(p)
-        r /= r[3, :]
-        return Polyhedron(r[:3, :].T, self.sides)
+    def assign_vertex_normals(self):
+        ns = np.zeros((self.points.shape[1], 3))
+        cs = np.zeros(self.points.shape[1])
+        for n_side in range(len(self.sides)):
+            for v in self.sides[n_side]:
+                cs[v] += 1
+                ns[v] += self.normals[n_side]
+        ns /= cs[...,np.newaxis].repeat(3, axis=1)
+        ns /= ((ns**2).sum(axis=1)**.5)[..., np.newaxis].repeat(3, axis=1)
+        self.vertex_normals = ns
 
     def apply_relative_transform(self, transform):
         tr = Transform.translate(
@@ -122,6 +125,14 @@ class Polyhedron:
             -self.center[2]
         ))
         return self.apply_transform(tr)
+
+    def apply_transform(self, transform):
+        l = self.points.shape[1]
+        p = np.ones((4, l))
+        p[:3, :] = self.points
+        r = transform.matrix.dot(p)
+        r /= r[3, :]
+        return Polyhedron(r[:3, :].T, self.sides)
 
     def save_obj(self, filename):
         with open(filename, 'wt') as f:
@@ -409,7 +420,7 @@ class Camera:
     def draw_with_both_culling_and_zbuf(self, size, polyhedron):
         transformed = polyhedron.apply_transform(self.pre_transform)
         points = transformed.points
-        lines  = transformed.sides
+        lines = transformed.sides
         normals = transformed.normals
 
         image = np.zeros(size + (3,))
@@ -490,6 +501,132 @@ class Camera:
 
         return Image.fromarray(image.astype("uint8"))
 
+    def draw_with_culling_and_zbuf_and_shading(self, size, polyhedron, light_pos):
+        transformed = polyhedron.apply_transform(self.pre_transform)
+        points = transformed.points
+        lines = transformed.sides
+        normals = transformed.normals
+
+        transformed.assign_vertex_normals()
+        v_normals = transformed.vertex_normals
+
+        image = np.zeros(size + (3,))
+        zbuf = np.full(size, np.finfo('d').max)
+        size = np.array(size)
+        l = points.shape[1]
+        p = np.ones((4, l))
+        p[:3, :] = points
+        r = self.matrix.dot(p)
+        pts = (r / r[2, :])[:2, :]
+
+        # front_col = np.array((255, 0, 127))
+        # back_col = np.array((0, 127, 255))
+        front_col = np.array((255, 0, 0))
+        back_col = np.array((255, 255, 255))
+
+        for j in range(len(lines)):
+            line = lines[j]
+            n = normals[j]
+            vec = self.vec_view(points[:, line[0]].reshape(3))
+
+            if n.dot(vec) >= 0:
+                continue
+
+            sorted_p = sorted(line, key=lambda x: pts[1, x])
+            p_up = pts[:, sorted_p[2]].reshape(2).astype('int')
+            r_up = np.sum(self.vec_view(points[:, sorted_p[2]].reshape(3))**2)
+            v_up = v_normals[sorted_p[2]]
+            p3_up = points[:, sorted_p[2]]
+            p_mid = pts[:, sorted_p[1]].reshape(2).astype('int')
+            r_mid = np.sum(self.vec_view(points[:, sorted_p[1]].reshape(3))**2)
+            v_mid = v_normals[sorted_p[1]]
+            p3_mid = points[:, sorted_p[1]]
+            p_down = pts[:, sorted_p[0]].reshape(2).astype('int')
+            r_down = np.sum(self.vec_view(points[:, sorted_p[0]].reshape(3))**2)
+            v_down = v_normals[sorted_p[0]]
+            p3_down = points[:, sorted_p[0]]
+
+            for y in range((p_down[1]), (p_up[1] + 1)):
+                if size[1] // 2 - y < 0:
+                    break
+                if size[1] // 2 - y >= size[1]:
+                    continue
+                if y >= int(p_mid[1]):
+                    if (p_mid[1]) == (p_up[1]):
+                        continue
+                    k = (y - p_mid[1]) / (p_up[1] - p_mid[1])
+                    x_mid = (p_up[0] - p_mid[0]) * k + p_mid[0]
+                    r_mid2 = (r_up - r_mid) * k + r_mid
+                    v_mid2 = (v_up - v_mid) * k + v_mid
+                    p3_mid2 = (p3_up - p3_mid) * k + p3_mid
+                else:
+                    if (p_down[1]) == (p_mid[1]):
+                        continue
+                    k = (y - p_down[1]) / (p_mid[1] - p_down[1])
+                    x_mid = (p_mid[0] - p_down[0]) * k + p_down[0]
+                    r_mid2 = (r_mid - r_down) * k + r_down
+                    v_mid2 = (v_mid - v_down) * k + v_down
+                    p3_mid2 = (p3_mid - p3_down) * k + p3_down
+                k2 = (y - p_down[1]) / (p_up[1] - p_down[1])
+                x_up = (p_up[0] - p_down[0]) * k2 + p_down[0]
+                r_up2 = (r_up - r_down) * k2 + r_down
+                v_up2 = (v_up - v_down) * k2 + v_down
+                p3_up2 = (p3_up - p3_down) * k2 + p3_down
+                if x_mid < x_up:
+                    x_left, x_right = int(x_mid), int(x_up)
+                    r_left, r_right = r_mid2, r_up2
+                    v_left, v_right = v_mid2, v_up2
+                    p3_left, p3_right = p3_mid2, p3_up2
+                else:
+                    x_left, x_right = int(x_up), int(x_mid)
+                    r_left, r_right = r_up2, r_mid2
+                    v_left, v_right = v_up2, v_mid2
+                    p3_left, p3_right = p3_up2, p3_mid2
+                x_left = min(max(-size[0] // 2, x_left), size[0] // 2)
+                x_right = max(min(size[0] // 2, x_right), -size[0] // 2)
+
+                if x_right - x_left <= 0:
+                    continue
+
+                # print('x_right - x_left:', x_right - x_left)
+
+                interp_k = np.linspace(0, 1, x_right - x_left)
+
+                # print('interp_k:', interp_k)
+
+                interp = interp_k * (r_right - r_left) + r_left
+                # print('interp:', interp)
+
+                v_interp = interp_k * (v_right.reshape(3, 1) - v_left.reshape(3, 1)) + v_left.reshape(3, 1)
+                # print('v_interp:', v_interp)
+                p3_interp = interp_k * (p3_left.reshape(3, 1) - p3_right.reshape(3, 1)) + p3_right.reshape(3, 1)
+                # print('p3_interp:', p3_interp)
+                light_norm_interp = np.array(light_pos).reshape(3, 1) - p3_interp
+                light_norm_interp /= (light_norm_interp**2).sum(axis=0)**.5
+                # print('light_norm_interp:', light_norm_interp)
+                light_interp = (v_interp * light_norm_interp).sum(axis=0)
+                # print('light_interp:', light_interp)
+
+                # color = np.clip(interp / 2500, 0, 1) * (back_col - front_col).reshape(3, 1) + front_col.reshape(3, 1)
+                # color = np.ones_like(interp) * (j / len(lines)) * (back_col - front_col).reshape(3, 1) + front_col.reshape(3, 1)
+                light_interp = light_interp[np.newaxis,...].repeat(3, axis=0)
+
+                color = light_interp * 127 + 127
+                # print('color:', color)
+
+                x_left += size[0] // 2
+                x_right += size[0] // 2
+                y = size[1] // 2 - y
+                if y >= size[0] or y <= 0:
+                    continue
+                ln = np.where((zbuf[y, x_left:x_right] > interp)[:, np.newaxis].repeat(3, axis=1), color.T,
+                              image[y, x_left:x_right])
+                image[y, x_left:x_right] = ln
+                zbuf[y, x_left:x_right] = np.where(zbuf[y, x_left:x_right] > interp, interp,
+                                                       zbuf[y, x_left:x_right])
+
+        return Image.fromarray(image.astype("uint8"))
+
     @staticmethod
     def ortho(pos=[0]*3, angles=[0]*3):
         return Camera([
@@ -535,14 +672,14 @@ class Camera:
 
 if __name__ == "__main__":
     import imageio as iio
-    t = Polyhedron.Octahedron(Point(0,40,0),20)
+    t = Polyhedron.Octahedron(Point(0,70,0),75)
     # print(t.points)
-    c = Camera.persp(0.012)
+    c = Camera.persp(0.012, pos=[0,-20,0], angles=[0,0,0])
     with iio.get_writer("test.gif", fps=30) as w:
-        for i in range(100):
+        for i in range(200):
             tr = Transform.scale(1,1,1).compose(
                 Transform.rotate('x', 0.2).compose(
-                    Transform.rotate('z', 2*np.pi*i/100)#60
+                    Transform.rotate('z', 2*np.pi*i/200)
                     # Transform.identity()
                     # Transform.rotate_around_line(
                     #     Line(Point(0,0,0), Point(1-i/100,0,i/100)),
@@ -552,7 +689,8 @@ if __name__ == "__main__":
             )
             # tr = Transform.reflect('yz').compose(tr)
             p = t.apply_relative_transform(tr)
-            im=np.array(c.draw_with_both_culling_and_zbuf((112,112), p))
+            light_pos = [100*np.cos(2*np.pi*i/100), 0, 100*np.cos(2*np.pi*i/100)]
+            im=np.array(c.draw_with_culling_and_zbuf_and_shading((224, 224), p, light_pos=light_pos))
             w.append_data(im)
     # s = Polyhedron.Cube(Point(0, 200, 0), 100)
     # s.save_obj('tmp.obj')
